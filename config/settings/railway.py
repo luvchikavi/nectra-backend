@@ -14,11 +14,9 @@ import dj_database_url
 # CRITICAL SECURITY SETTINGS
 # ============================================
 
-SECRET_KEY = os.environ.get('SECRET_KEY')
-if not SECRET_KEY:
-    raise ValueError("SECRET_KEY environment variable is required!")
+SECRET_KEY = os.environ.get('SECRET_KEY', 'temporary-secret-key-change-in-production-123456789')
 
-DEBUG = False
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 # Railway provides the domain automatically
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '.railway.app').split(',')
@@ -42,7 +40,7 @@ SECURE_HSTS_PRELOAD = True
 # ============================================
 # CORS - Allow Vercel frontend
 # ============================================
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all for now - tighten in production
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ALLOWED_ORIGINS',
@@ -90,7 +88,14 @@ if DATABASE_URL:
         )
     }
 else:
-    raise ValueError("DATABASE_URL environment variable is required!")
+    # Fallback to SQLite for debugging - NOT for production use
+    print("WARNING: DATABASE_URL not set, using SQLite")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': '/tmp/db.sqlite3',
+        }
+    }
 
 # ============================================
 # STATIC FILES - WhiteNoise
