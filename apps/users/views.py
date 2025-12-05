@@ -136,6 +136,61 @@ class CurrentUserView(APIView):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+def register_view(request):
+    """
+    Public registration endpoint - creates a new user with SUPER_ADMIN role
+    if no users exist, otherwise creates a regular USER.
+    """
+    email = request.data.get('email')
+    password = request.data.get('password')
+    username = request.data.get('username', email)
+    first_name = request.data.get('first_name', '')
+    last_name = request.data.get('last_name', '')
+
+    if not email or not password:
+        return Response(
+            {'message': 'Email and password are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Check if user already exists
+    if User.objects.filter(email=email).exists():
+        return Response(
+            {'message': 'User with this email already exists'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # First user becomes SUPER_ADMIN
+    is_first_user = User.objects.count() == 0
+    role = 'SUPER_ADMIN' if is_first_user else 'USER'
+
+    # Create the user
+    user = User.objects.create_user(
+        email=email,
+        username=username,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        role=role,
+        is_staff=is_first_user,
+        is_superuser=is_first_user
+    )
+
+    # Create token
+    token, _ = Token.objects.get_or_create(user=user)
+
+    # Serialize user data
+    serializer = UserSerializer(user)
+
+    return Response({
+        'token': token.key,
+        'user': serializer.data,
+        'message': 'Registration successful' + (' - You are the admin!' if is_first_user else '')
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def login_view(request):
     email = request.data.get('email')
     password = request.data.get('password')
