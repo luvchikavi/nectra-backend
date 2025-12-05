@@ -1,0 +1,35 @@
+# Django Core
+Django>=4.2,<5.0
+djangorestframework>=3.14
+django-cors-headers>=4.0
+django-filter>=23.0
+django-extensions>=3.2
+
+# Database
+psycopg2-binary>=2.9
+dj-database-url>=2.1
+
+# Authentication
+PyJWT>=2.8
+
+# File handling
+openpyxl>=3.1
+python-magic>=0.4  # For file type validation
+
+# Async tasks
+celery>=5.3
+redis>=5.0
+
+# Production
+gunicorn>=21.0
+whitenoise>=6.6
+
+# AWS S3 (for production file storage)
+boto3>=1.28
+django-storages>=1.14
+
+# Error tracking (optional)
+sentry-sdk>=1.30
+
+# Development
+python-dotenv>=1.0

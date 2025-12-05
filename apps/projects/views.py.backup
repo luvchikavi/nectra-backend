@@ -1,0 +1,308 @@
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from .models import Project, ProjectDataInputs
+from .serializers import (
+    ProjectSerializer, 
+    ProjectDataInputsSerializer,
+    DataInputUpdateSerializer
+)
+
+
+class ProjectViewSet(viewsets.ModelViewSet):
+    """ViewSet for Project model"""
+    queryset = Project.objects.all()
+    serializer_class = ProjectSerializer
+    
+    @action(detail=True, methods=['get'])
+    def summary(self, request, pk=None):
+        """Get dashboard summary data for a project"""
+        project = self.get_object()
+        
+        try:
+            data_inputs = project.data_inputs
+            
+            # Extract key metrics for dashboard
+            summary = {
+                'project_id': project.project_id,
+                'project_name': project.project_name,
+                'phase': project.phase,
+                'timeline': self._extract_timeline(data_inputs.timeline_dates),
+                'profitability': self._extract_profitability(data_inputs.profitability),
+                'building_costs': self._extract_costs(data_inputs.cost_forecast),
+                'sales': self._extract_sales(data_inputs.revenue_forecast),
+            }
+            
+            return Response(summary)
+            
+        except ProjectDataInputs.DoesNotExist:
+            return Response({
+                'project_id': project.project_id,
+                'project_name': project.project_name,
+                'phase': project.phase,
+                'message': 'No data inputs available yet'
+            })
+    
+    def _extract_timeline(self, data):
+        """Extract timeline metrics"""
+        if not data:
+            return None
+        return {
+            'start_date': data.get('start_date'),
+            'end_date': data.get('end_date'),
+            'duration_months': data.get('duration_months')
+        }
+    
+    def _extract_profitability(self, data):
+        """Extract profitability metrics"""
+        if not data:
+            return None
+        return {
+            'profit_percentage': data.get('profit_percentage'),
+            'profit_amount': data.get('profit_amount')
+        }
+    
+    def _extract_costs(self, data):
+        """Extract cost metrics"""
+        if not data:
+            return None
+        return {
+            'total_cost': data.get('total_cost')
+        }
+    
+    def _extract_sales(self, data):
+        """Extract sales metrics"""
+        if not data:
+            return None
+        return {
+            'total_revenue': data.get('total_revenue'),
+            'total_units': data.get('total_units')
+        }
+
+
+class ProjectDataInputsViewSet(viewsets.ModelViewSet):
+    """ViewSet for ProjectDataInputs model"""
+    queryset = ProjectDataInputs.objects.all()
+    serializer_class = ProjectDataInputsSerializer
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/property-details')
+    def property_details(self, request, project_id=None):
+        """Get or update property details"""
+        return self._handle_input_field(request, project_id, 'property_details')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/project-description')
+    def project_description(self, request, project_id=None):
+        """Get or update project description"""
+        if request.method == 'GET':
+            project = get_object_or_404(Project, id=project_id)
+            data_inputs, created = ProjectDataInputs.objects.get_or_create(project=project)
+            return Response({
+                'text': data_inputs.project_description_text,
+                'table': data_inputs.project_description_table
+            })
+        else:
+            project = get_object_or_404(Project, id=project_id)
+            data_inputs, created = ProjectDataInputs.objects.get_or_create(project=project)
+            data_inputs.project_description_text = request.data.get('text')
+            data_inputs.project_description_table = request.data.get('table')
+            data_inputs.save()
+            return Response({'status': 'saved'})
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/timeline')
+    def timeline(self, request, project_id=None):
+        """Get or update timeline"""
+        return self._handle_input_field(request, project_id, 'timeline_dates')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/sales-timeline')
+    def sales_timeline(self, request, project_id=None):
+        """Get or update sales timeline"""
+        return self._handle_input_field(request, project_id, 'sales_timeline')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/revenue-forecast')
+    def revenue_forecast(self, request, project_id=None):
+        """Get or update revenue forecast"""
+        return self._handle_input_field(request, project_id, 'revenue_forecast')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/cost-forecast')
+    def cost_forecast(self, request, project_id=None):
+        """Get or update cost forecast"""
+        return self._handle_input_field(request, project_id, 'cost_forecast')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/profitability')
+    def profitability(self, request, project_id=None):
+        """Get or update profitability"""
+        return self._handle_input_field(request, project_id, 'profitability')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/sensitivity-analysis')
+    def sensitivity_analysis(self, request, project_id=None):
+        """Get or update sensitivity analysis"""
+        return self._handle_input_field(request, project_id, 'sensitivity_analysis')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/break-even')
+    def break_even(self, request, project_id=None):
+        """Get or update break even"""
+        return self._handle_input_field(request, project_id, 'break_even')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/land-value')
+    def land_value(self, request, project_id=None):
+        """Get or update land value"""
+        return self._handle_input_field(request, project_id, 'land_value')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/index-values')
+    def index_values(self, request, project_id=None):
+        """Get or update index values"""
+        return self._handle_input_field(request, project_id, 'index_values')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/insurance')
+    def insurance(self, request, project_id=None):
+        """Get or update insurance"""
+        return self._handle_input_field(request, project_id, 'insurance')
+    
+    @action(detail=False, methods=['get', 'post'], url_path='project/(?P<project_id>[^/.]+)/cashflow')
+    def cashflow(self, request, project_id=None):
+        """Get or update cashflow"""
+        return self._handle_input_field(request, project_id, 'cashflow')
+    
+    def _handle_input_field(self, request, project_id, field_name):
+        """Generic handler for input fields"""
+        project = get_object_or_404(Project, id=project_id)
+        data_inputs, created = ProjectDataInputs.objects.get_or_create(project=project)
+        
+        if request.method == 'GET':
+            data = getattr(data_inputs, field_name)
+            return Response({'data': data})
+        else:
+            serializer = DataInputUpdateSerializer(data=request.data)
+            if serializer.is_valid():
+                setattr(data_inputs, field_name, serializer.validated_data['data'])
+                data_inputs.save()
+                return Response({'status': 'saved'}, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+from django.http import FileResponse, HttpResponse
+from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser
+from .excel_template import generate_template_file
+from .excel_parser import parse_uploaded_excel, validate_excel_structure
+import os
+import tempfile
+
+class ProjectDataInputsViewSet(viewsets.ModelViewSet):
+    """ViewSet for ProjectDataInputs model - EXTENDED"""
+    
+    @action(detail=False, methods=['get'])
+    def download_template(self, request):
+        """Download Excel template for data input"""
+        try:
+            # Create temporary file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+            template_path = generate_template_file(temp_file.name)
+            
+            # Return file
+            response = FileResponse(
+                open(template_path, 'rb'),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = 'attachment; filename="nectar_template.xlsx"'
+            
+            return response
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to generate template: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'], parser_classes=[MultiPartParser], url_path='project/(?P<project_id>[^/.]+)/upload-excel')
+    def upload_excel(self, request, project_id=None):
+        """Upload filled Excel template and parse data"""
+        try:
+            project = get_object_or_404(Project, id=project_id)
+            uploaded_file = request.FILES.get('file')
+            
+            if not uploaded_file:
+                return Response(
+                    {'error': 'No file uploaded'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Save uploaded file temporarily
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+            for chunk in uploaded_file.chunks():
+                temp_file.write(chunk)
+            temp_file.close()
+            
+            # Validate structure
+            is_valid, errors = validate_excel_structure(temp_file.name)
+            if not is_valid:
+                os.unlink(temp_file.name)
+                return Response(
+                    {'error': 'Invalid Excel structure', 'details': errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Parse data
+            parsed_data = parse_uploaded_excel(temp_file.name)
+            
+            # Get or create ProjectDataInputs
+            data_inputs, created = ProjectDataInputs.objects.get_or_create(project=project)
+            
+            # Save parsed data to appropriate fields
+            if 'property_details' in parsed_data:
+                data_inputs.property_details = parsed_data['property_details']
+            
+            if 'project_description' in parsed_data:
+                data_inputs.project_description_text = parsed_data['project_description'].get('תיאור_טקסטואלי', '')
+                data_inputs.project_description_table = parsed_data['project_description'].get('table_data', [])
+            
+            if 'timeline' in parsed_data:
+                data_inputs.timeline_dates = parsed_data['timeline']
+            
+            if 'sales_timeline' in parsed_data:
+                data_inputs.sales_timeline = parsed_data['sales_timeline'].get('table_data', [])
+            
+            if 'revenue_forecast' in parsed_data:
+                data_inputs.revenue_forecast = parsed_data['revenue_forecast'].get('table_data', [])
+            
+            if 'cost_forecast' in parsed_data:
+                data_inputs.cost_forecast = parsed_data['cost_forecast'].get('table_data', [])
+            
+            if 'profitability' in parsed_data:
+                data_inputs.profitability = parsed_data['profitability'].get('table_data', [])
+            
+            if 'sensitivity_analysis' in parsed_data:
+                data_inputs.sensitivity_analysis = parsed_data['sensitivity_analysis'].get('table_data', [])
+            
+            if 'break_even' in parsed_data:
+                data_inputs.break_even = parsed_data['break_even'].get('table_data', [])
+            
+            if 'land_value' in parsed_data:
+                data_inputs.land_value = parsed_data['land_value'].get('table_data', [])
+            
+            if 'index_values' in parsed_data:
+                data_inputs.index_values = parsed_data['index_values']
+            
+            if 'insurance' in parsed_data:
+                data_inputs.insurance = parsed_data['insurance'].get('table_data', [])
+            
+            if 'cashflow' in parsed_data:
+                data_inputs.cashflow = parsed_data['cashflow'].get('table_data', [])
+            
+            data_inputs.save()
+            
+            # Cleanup
+            os.unlink(temp_file.name)
+            
+            return Response({
+                'status': 'success',
+                'message': 'Excel data uploaded successfully',
+                'sections_imported': list(parsed_data.keys())
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to process Excel: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+

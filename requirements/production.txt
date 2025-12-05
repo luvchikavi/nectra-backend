@@ -1,0 +1,11 @@
+-r base.txt
+
+# Production server
+gunicorn==21.2.0
+whitenoise==6.6.0
+
+# Monitoring & Error tracking
+sentry-sdk==1.40.0
+
+# Production optimizations
+django-redis==5.4.0
