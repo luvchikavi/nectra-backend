@@ -84,7 +84,7 @@ if DATABASE_URL:
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=60,
-            ssl_require=True
+            ssl_require=False  # Railway internal network doesn't require SSL
         )
     }
 else:
